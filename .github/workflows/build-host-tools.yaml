@@ -1,0 +1,94 @@
+name: Build Host Tools
+
+on:
+  # 允许被其他 workflow 调用，并对外暴露 cache-key
+  workflow_call:
+    outputs:
+      cache-key:
+        description: 'host-tools 缓存 key'
+        value: ${{ jobs.build-host-tools.outputs.cache-key }}
+
+  # 支持手动触发（用于预热缓存）
+  workflow_dispatch:
+
+  # 当构建脚本/描述文件变化时自动触发，提前刷新缓存
+  push:
+    paths:
+      - 'main/build-stamp'
+      - '.github/workflows/build-host-tools.yml'
+    branches-ignore:
+      - 'dependabot/**'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  build-host-tools:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 关键：cache-key 基于源文件哈希，保证调用方与提供方一致
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "key=host-tools-${{ hashFiles('main/build-stamp') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate download packages key
+        id: download-cache-key
+        run: |
+          echo "key=download_packages-${{ hashFiles('main/build-stamp') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore download_packages cache
+        id: cache-download_packages
+        uses: actions/cache/restore@v4
+        with:
+          path: ./download_packages-cache
+          key: ${{ steps.download-cache-key.outputs.key }}
+
+      - name: Restore host-tools cache
+        id: cache-host-tools
+        uses: actions/cache/restore@v4
+        with:
+          path: ./host-tools-cache
+          key: ${{ steps.cache-key.outputs.key }}
+
+      - name: Build host-tools
+        run: |
+          mkdir -p ./download_packages-cache
+          mkdir -p ./host-tools-cache
+          docker buildx build \
+            -f docker/Dockerfile.host-tools \
+            --target host-tools-builder \
+            --output type=local,dest=./host-tools-cache \
+            --cache-from type=gha,scope=host-tools \
+            --cache-to type=gha,mode=max,scope=host-tools \
+            .
+
+      - name: Delete old cache entry
+        if: steps.cache-host-tools.outputs.cache-hit == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh cache delete "${{ steps.cache-key.outputs.key }}" \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref }}" \
+            || true
+
+      - name: Save updated cache
+        uses: actions/cache/save@v4
+        with:
+          path: ./host-tools-cache
+          key: ${{ steps.cache-key.outputs.key }}
+
+      - name: Verify cache output
+        run: |
+          echo "host-tools cache contents:"
+          find ./host-tools-cache -type f | head -50
