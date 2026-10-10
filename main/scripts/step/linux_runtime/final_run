@@ -9,10 +9,10 @@ export RESOURCEDIR=${NEW_TARGET_SYSDIR}/files/linux_runtime/final_run//
 if [ -d ${LINUX_SYSROOT_DIR}/usr/lib${LIB_SUFF}/ ]; then
 	find ${LINUX_SYSROOT_DIR}/usr/lib${LIB_SUFF}/ -type f -name "*.la" -exec rm '{}' ';'
 	find ${LINUX_SYSROOT_DIR}/usr/lib${LIB_SUFF}/ -type f -name "*.prl" -exec rm '{}' ';'
-fi
 
-chmod u+w ${LINUX_SYSROOT_DIR}/usr/lib${LIB_SUFF}/libdevmapper*.so*
-chmod u+w ${LINUX_SYSROOT_DIR}/usr/lib${LIB_SUFF}/liblvm2cmd*.so*
+	chmod -f u+w ${LINUX_SYSROOT_DIR}/usr/lib${LIB_SUFF}/libdevmapper*.so*
+	chmod -f u+w ${LINUX_SYSROOT_DIR}/usr/lib${LIB_SUFF}/liblvm2cmd*.so*
+fi
 
 set_final_fix_step "${RUNTIME_SYSROOT_DIR}/usr/lib${LIB_SUFF}/cmake" "S" "f" "*.cmake" "${RUNTIME_SYSROOT_DIR}>>>"
 set_final_fix_step "${RUNTIME_SYSROOT_DIR}/usr/bin/" "S" "g" "ASCII" "${SYSROOT_DIR}>>>"
