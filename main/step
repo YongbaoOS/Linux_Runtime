@@ -24,6 +24,7 @@
 %step/host-tools/Mako|
 %step/host-tools/packaging|
 %step/host-tools/python-zstandard|
+%step/host-tools/gobject-introspection|
 %step/host-tools/cairo|
 %step/host-tools/pycairo|
 %step/host-tools/pygobject|
