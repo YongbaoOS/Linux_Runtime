@@ -20,6 +20,7 @@
 %step/host-tools/MarkupSafe|
 %step/host-tools/Jinja2|
 %step/host-tools/meson|
+%step/host-tools/ninja|
 %step/host-tools/Mako|
 %step/host-tools/packaging|
 %step/host-tools/python-zstandard|
@@ -31,7 +32,6 @@
 %step/host-tools/icu4c|
 %step/host-tools/wayland|
 %step/host-tools/cmake|
-%step/host-tools/ninja|
 %step/host-tools/glslang|
 %step/bootstrap/rust-bootstrap|
 %step/host-tools/rustc|
@@ -76,6 +76,7 @@
 %step/linux_runtime/bzip2|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/pcre2|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/libffi|%target=?x86_64;%OVERLAY=linux_runtime
+%step/linux_runtime/libunwind|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/glib|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/freetype|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/brotli|%target=?x86_64;%OVERLAY=linux_runtime
@@ -265,7 +266,6 @@
 %step/linux_runtime/bash|%target=?x86_64;%OVERLAY=linux_runtime;tools
 %step/linux_runtime/pcre|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/libseccomp|%target=?x86_64;%OVERLAY=linux_runtime
-%step/linux_runtime/libunwind|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/libbpf|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/fmt|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/MangoHud|%target=?x86_64;%OVERLAY=linux_runtime;tools
