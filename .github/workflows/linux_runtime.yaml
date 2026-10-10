@@ -1,0 +1,126 @@
+name: Build Linux Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: "目标架构"
+        type: choice
+        options: [all, x86_64, i686]
+        default: all
+  push:
+    paths:
+      - 'main/build-stamp'
+      - '.github/workflows/linux_runtime.yml'
+    branches-ignore:
+      - 'dependabot/**'
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  target-runtime:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ github.event_name == 'workflow_dispatch' && inputs.arch != 'all'
+                  && fromJSON(format('["{0}"]', inputs.arch))
+                  || fromJSON('["x86_64","i686"]') }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.22.0
+
+      - name: Prune buildx cache
+        run: docker buildx prune -af
+
+      # 关键：cache-key 基于源文件哈希，保证调用方与提供方一致
+      - name: Generate Host Tools key
+        id: host-tools-cache-key
+        run: |
+          echo "key=host-tools-${{ hashFiles('main/build-stamp') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate download packages key
+        id: download-cache-key
+        run: |
+          echo "key=download_packages-${{ hashFiles('main/build-stamp') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate linux runtime key
+        id: linux_runtime-cache-key
+        run: |
+          echo "key=linux_runtime_${{ matrix.arch }}-${{ hashFiles('main/build-stamp') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore download_packages cache
+        id: cache-download_packages
+        uses: actions/cache/restore@v4
+        with:
+          path: ./download_packages-cache
+          key: ${{ steps.download-cache-key.outputs.key }}
+
+      - name: Restore Host-tools cache
+        id: cache-host-tools
+        uses: actions/cache/restore@v4
+        with:
+          path: ./host-tools-cache
+          key: ${{ steps.host-tools-cache-key.outputs.key }}
+
+      - name: Restore Linux Runtime cache
+        id: cache-linux_runtime
+        uses: actions/cache/restore@v4
+        with:
+          path: ./linux_runtime_${{ matrix.arch }}-cache
+          key: ${{ steps.linux_runtime-cache-key.outputs.key }}
+
+      - name: Build Linux Runtime
+        run: |
+          mkdir -p ./download_packages-cache
+          mkdir -p ./host-tools-cache
+          mkdir -p ./linux_runtime_${{ matrix.arch }}-cache
+          docker buildx build \
+            --allow security.insecure \
+            -f docker/Dockerfile.linux_runtime \
+            --build-arg ARCH=${{ matrix.arch }} \
+            --target linux_runtime-builder \
+            --output type=local,dest=./linux_runtime_${{ matrix.arch }}-cache \
+            --cache-from type=gha,scope=linux_runtime-${{ matrix.arch }} \
+            --cache-to type=gha,mode=max,scope=linux_runtime-${{ matrix.arch }} \
+            .
+
+      - name: Delete old ${{ matrix.arch }} cache entry
+        if: steps.cache-linux_runtime.outputs.cache-hit == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh cache delete "${{ steps.linux_runtime-cache-key.outputs.key }}" \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref }}" \
+            || true
+
+      - name: Save updated ${{ matrix.arch }} cache
+        uses: actions/cache/save@v4
+        with:
+          path: ./linux_runtime_${{ matrix.arch }}-cache
+          key: ${{ steps.linux_runtime-cache-key.outputs.key }}
+
+      - name: Verify cache output
+        run: |
+          echo "${{ matrix.arch }} linux runtime cache contents:"
+          find ./linux_runtime_${{ matrix.arch }}-cache -type f | head -50

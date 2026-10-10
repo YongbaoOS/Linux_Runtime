@@ -1,0 +1,80 @@
+# syntax=docker/dockerfile:1-labs
+
+ARG BASE_IMAGE=ubuntu:26.04
+
+# ============================================================
+# Stage 2: linux runtime 构建阶段
+# 执行 ./build.sh ，生成目标架构的runtime
+# ============================================================
+FROM ${BASE_IMAGE} AS linux_runtime
+ARG ARCH=x86_64
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        locales \
+        gettext autopoint \
+        autoconf \
+        gawk \
+        kmod \
+        fuse-overlayfs \
+        sudo \
+        zlib1g-dev \
+        libgmp-dev libmpfr-dev libmpc-dev \
+        libglib2.0-dev \
+        libssl-dev \
+        rsync \
+        texinfo \
+        gperf \
+        doxygen \
+        patchelf \
+        libxml2-utils xmlto \
+        groff \
+        flex bison \
+        git \
+        curl \
+        wget \
+        python3 \
+        pkg-config \
+        && locale-gen zh_CN.UTF-8 \
+        && rm -rf /var/lib/apt/lists/*
+
+#         xz-utils zstd gzip unzip
+
+WORKDIR /src
+COPY . .
+RUN mkdir -pv ./host-tools-cache/host-tools ./host-tools-cache/status \
+    ./linux_runtime_${ARCH}-cache/${ARCH}_runtime ./linux_runtime_${ARCH}-cache/cross-toolchains \
+    ./linux_runtime_${ARCH}-cache/status ./linux_runtime_${ARCH}-cache/common_files \
+    ./linux_runtime_${ARCH}-cache/notice/cross-toolchains ./linux_runtime_${ARCH}-cache/notice/linux_runtime \
+    && mkdir -p ./main/downloads ./main/workbase/overlaydir \
+    ./main/workbase/status/ ./main/workbase/common_files \
+    ./main/workbase/notice/cross-toolchains ./main/workbase/notice/linux_runtime \
+    && mv ./download_packages-cache/* ./main/downloads/ \
+    && mv ./host-tools-cache/host-tools ./main/workbase/ \
+    && cp -a ./host-tools-cache/status/. ./main/workbase/status/ \
+    && mv ./linux_runtime_${ARCH}-cache/${ARCH}_runtime ./main/workbase/overlaydir/ \
+    && mv ./linux_runtime_${ARCH}-cache/cross-toolchains ./main/workbase/ \
+    && cp -a ./linux_runtime_${ARCH}-cache/status/. ./main/workbase/status/ \
+    && cp -a ./linux_runtime_${ARCH}-cache/common_files/. ./main/workbase/common_files/ \
+    && cp -a ./linux_runtime_${ARCH}-cache/notice/cross-toolchains/. ./main/workbase/notice/cross-toolchains/ \
+    && cp -a ./linux_runtime_${ARCH}-cache/notice/linux_runtime/. ./main/workbase/notice/linux_runtime/
+
+RUN --security=insecure chmod +x ./main/build.sh \
+    && cd ./main \
+    && ./build.sh -l -B 100 -e target=${ARCH} -S ${ARCH}_runtime
+
+# linux runtime 产物统一收集到 /output/linux_runtime
+RUN mkdir -p /output/linux_runtime/status/ /output/linux_runtime/notice/ \
+    && cp -a ./main/workbase/overlaydir/${ARCH}_runtime /output/linux_runtime/ \
+    && cp -a ./main/workbase/cross-toolchains /output/linux_runtime/ \
+    && cp -a ./main/workbase/status/linux_runtime /output/linux_runtime/status/ \
+    && cp -a ./main/workbase/status/cross-toolchains /output/linux_runtime/status/ \
+    && cp -a ./main/workbase/common_files /output/linux_runtime/ \
+    && cp -a ./main/workbase/notice/cross-toolchains /output/linux_runtime/notice/ \
+    && cp -a ./main/workbase/notice/linux_runtime /output/linux_runtime/notice/
+
+FROM scratch AS linux_runtime-builder
+COPY --from=linux_runtime /output/linux_runtime/. /
