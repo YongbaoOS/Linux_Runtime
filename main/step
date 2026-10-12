@@ -192,8 +192,6 @@
 %step/linux_runtime/sane-backends|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/pcsc-lite|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/alsa-lib|%target=?x86_64;%OVERLAY=linux_runtime
-%step/linux_runtime/oss4|%target=?x86_64;%OVERLAY=linux_runtime
-%step/linux_runtime/alsa-oss|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/glibc_localedata|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/ocl-icd|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/unixODBC|%target=?x86_64;%OVERLAY=linux_runtime
