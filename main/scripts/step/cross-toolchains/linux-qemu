@@ -12,6 +12,7 @@ pushd ${BUILD_DIRECTORY}/qemu-11.0.3
     sed -i "/HAVE_OPENAT2_H/d" meson.build
     mkdir -p build
     pushd build
+	export CFLAGS="-O2" CXXFLAGS="-O2"
         ../configure --prefix=${PREFIX}/${LINUX_HOST} --target-list=${QEMU_ARCH}-linux-user --disable-docs
         ninja
         cp qemu-${QEMU_ARCH} ${PREFIX}/${LINUX_HOST}/bin/qemu-${QEMU_ARCH}.bin
@@ -28,11 +29,11 @@ LD_TRACE_LOADED_OBJECTS=1 LD_LIBRARY_PATH=${LINUX_SYSROOT_DIR}/usr/lib${LIB_SUFF
 		;;
 	*)
 		echo "#!/bin/bash -e
-${PREFIX}/${LINUX_HOST}/bin/qemu-${QEMU_ARCH}.bin -L ${LINUX_SYSROOT_DIR} \"\$@\"" \
+${PREFIX}/${LINUX_HOST}/bin/qemu-${QEMU_ARCH}.bin -L ${LINUX_SYSROOT_DIR} -E LD_LIBRARY_PATH=/usr/lib${LIB_SUFF} \"\$@\"" \
 > ${PREFIX}/${LINUX_HOST}/bin/qemu-${QEMU_ARCH}
 
 		echo "#!/bin/bash -e
-${PREFIX}/${LINUX_HOST}/bin/qemu-${QEMU_ARCH}.bin -L ${LINUX_SYSROOT_DIR} -E LD_TRACE_LOADED_OBJECTS=1 \"\$@\"" \
+${PREFIX}/${LINUX_HOST}/bin/qemu-${QEMU_ARCH}.bin -L ${LINUX_SYSROOT_DIR} -E LD_TRACE_LOADED_OBJECTS=1 -E LD_LIBRARY_PATH=/usr/lib${LIB_SUFF} \"\$@\"" \
 > ${PREFIX}/${LINUX_HOST}/bin/qemu-${QEMU_ARCH}-ldd
 		;;
 esac
