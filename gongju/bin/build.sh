@@ -59,8 +59,9 @@ declare BUILD_ERROR_LIMITE=1
 declare BUILD_ERROR_COUNT=1
 declare SHOW_ERROR_LOG=0
 declare USE_FUSE_OVERLAYFS=1
+declare SET_BREAK_STEP_FOR_TIME=0
 
-while getopts 'fao:rgsP:de:xi:S:O:C:K:tpwclh' OPT; do
+while getopts 'fao:rgsP:de:xi:S:O:C:K:tpwclB:h' OPT; do
     case $OPT in
         f)
             FORCE_BUILD=1
@@ -162,6 +163,9 @@ while getopts 'fao:rgsP:de:xi:S:O:C:K:tpwclh' OPT; do
 	l)
 	    SHOW_ERROR_LOG=1
 	    ;;
+	B)
+	    SET_BREAK_STEP_FOR_TIME=$OPTARG
+	    ;;
         h|?)
             echo "目标系统构建命令。"
             echo ""
@@ -197,6 +201,7 @@ while getopts 'fao:rgsP:de:xi:S:O:C:K:tpwclh' OPT; do
 	    echo "        错误数: 1，出现错误步骤即立刻停止构建过程，显示相关的信息。"
 	    echo "        错误数: 2以上，指定错误步骤的上限，达到该限制时将立刻停止构建过程，并显示所有错误步骤。"
 	    echo "    -l: 显示错误日志内容，仅当错误数(-K)指定为 1 或不指定时有效。"
+	    echo "    -B <分钟>: 设置构建进行过程中的中断时间，当每个构建步骤开始前会测试已经进行的时间，如果超过该参数设置的分钟数，则停止构建过程，并返回0，若未设置该参数或参数设置为 0 表示不中断。"
             exit 127
     esac
 done
@@ -291,6 +296,34 @@ if [ "x${SINGLE_PACKAGE_TAR}" != "xnone" ] && [ "x${SINGLE_PACKAGE_TAR}" != "x" 
 			;;
 	esac
 fi
+
+declare YONGBAO_BUILD_TIMEOUT_START=0
+function start_timeout
+{
+	# 开始计时
+	YONGBAO_BUILD_TIMEOUT_START=$(date +%s)
+	echo "开始时间 $(date +%H:%M)"
+}
+
+function test_timeout
+{
+	declare TIMEOUT_END=0
+	if [ "x${SET_BREAK_STEP_FOR_TIME}" == "x0" ]; then
+		echo "0"
+		return
+	fi
+	# 获取当前时间
+	TIMEOUT_END=$(date +%s)
+	diff_sec=$((TIMEOUT_END - YONGBAO_BUILD_TIMEOUT_START))
+	# 分钟取整
+	diff_min=$((diff_sec / 60))
+	if [ "${diff_min}" -ge ${SET_BREAK_STEP_FOR_TIME} ]; then
+		echo "1"
+		return
+	fi
+	echo "0"
+	return
+}
 
 
 function set_build_env
@@ -1782,7 +1815,8 @@ function step_to_index
 			STEP_PKG_OPT=$(cat "${SOURCE_STEP_FILE}" | grep "^%step/${STEPNAME}/${STEP_PKGNAME}|" | sort | uniq | tail -n1 | awk -F'|' '{ print $2 }')
 			STOP_STEP_PKGNAME=$(cat "${SOURCE_STEP_FILE}" | grep "^%step/${STEPNAME}/${STEP_PKGNAME}|" | sort | uniq | tail -n1 | awk -F'|' '{ print $1 }')
 			STOP_STEP_OPT=$(cat "${SOURCE_STEP_FILE}" | grep "^%step/${STEPNAME}/${STEP_PKGNAME}|" | sort | uniq | tail -n1 | awk -F'|' '{ print $2 }')
-			STOP_STEP_GROUP="${STOP_STEP_PKGNAME}"
+# 			STOP_STEP_GROUP="${STOP_STEP_PKGNAME}"
+			STOP_STEP_GROUP="%step/${STEPNAME}/"
 			STOP_STEP_STR="${STOP_STEP_PKGNAME}"
 		fi
 		if [ "x${STEPNAME}" != "xNULL" ] && [ "x${STEP_PKGNAME}" == "xNULL" ]; then
@@ -2435,9 +2469,19 @@ if [ -f ${NEW_TARGET_SYSDIR}/logs/info_pool ]; then
 fi
 touch ${NEW_TARGET_SYSDIR}/logs/info_pool
 
+
+# 开始计时
+start_timeout
+
 # cat ${STEP_FILE} | awk -F'|' '{ print $1 }' | while read line
 cat ${STEP_FILE} | grep -v "^#" | while read line_all
 do
+	if [ "x$(test_timeout)" == "x1" ]; then
+		# 已超时
+		echo "制作过程用时超过设定时间，当前制作进度暂停，可再次运行继续制作。"
+		exit 99
+	fi
+
 	SET_PARENT_DIR="${USER_SET_PARENT_DIR}"
 	if [ "x${AUTO_SET_OVERLAY_DIR}" == "x1" ]; then
 		SET_OVERLAY_DIR=""
@@ -2713,7 +2757,7 @@ do
 					cat ${NEW_TARGET_SYSDIR}/logs/${STATUS_LOG_FILE}.log | tail -n300
 					get_fit_error_info ${NEW_TARGET_SYSDIR}/logs/${STATUS_LOG_FILE}.log
 					echo "----------------------------------------"
-					exit 0
+					exit 99
 				else
 					REBUILD_ENV=$(format_package_env_to_string)
 					echo -e "进入构建环境进行调试使用命令： \e[32m tools/enter_package_env.sh ${WORLD_PARM}$([[ "${REBUILD_ENV}" == "" ]] && echo "$([[ "${SHOW_PACKAGE_OPT}" == "" ]] && echo "" || echo " -e $(echo "${SHOW_PACKAGE_OPT}" | sed "s@ @,@g")")" || echo " -e ${REBUILD_ENV}")$([[ "${SET_CROSSTOOLS_DIR}" == "" ]] && echo "" || echo " -C ${SET_CROSSTOOLS_DIR}")$([[ "${SET_PARENT_DIR}" == "" ]] && echo "$([[ "${OPT_SET_PARENT_DIR}" == "" ]] && echo "" || echo " -O ${OPT_SET_PARENT_DIR}")" || echo " -O ${SET_PARENT_DIR}")$([[ "${SET_OVERLAY_DIR}" == "" ]] && echo "$([[ "${OPT_SET_OVERLAY_DIR}" == "" ]] && echo "" || echo " -S ${OPT_SET_OVERLAY_DIR}")" || echo " -S ${SET_OVERLAY_DIR}") ${STEP_STAGE}/${PACKAGE_NAME} \e[0m"
@@ -2895,29 +2939,38 @@ do
 	fi
 done
 
-if [ "x$?" == "x0" ]; then
-	echo -e "\r编译制作过程完成。\033[0K\n"
+# if [ "x$?" == "x0" ]; then
+case "x$?" in
+	x0 )
+		echo -e "\r编译制作过程完成。\033[0K\n"
 
-	if [ -f ${NEW_TARGET_SYSDIR}/logs/build_error.log ]; then
-		echo -e "\e[31m本次编译存在以下错误步骤，请检查。\e[0m"
-		if (( $(wc -l ${NEW_TARGET_SYSDIR}/logs/build_error.log |awk -F' ' '{ print $1 }') >= 15 )); then
-			head -n15 ${NEW_TARGET_SYSDIR}/logs/build_error.log
-			echo -e "\e[031m......\e[0m"
-			echo -e "\e[031m错误数据太多，不再继续显示\e[0m，可打开 \e[031m ${NEW_TARGET_SYSDIR}/logs/build_error.log \e[0m 文件查看更多信息。"
-		else
-			cat ${NEW_TARGET_SYSDIR}/logs/build_error.log
+		if [ -f ${NEW_TARGET_SYSDIR}/logs/build_error.log ]; then
+			echo -e "\e[31m本次编译存在以下错误步骤，请检查。\e[0m"
+			if (( $(wc -l ${NEW_TARGET_SYSDIR}/logs/build_error.log |awk -F' ' '{ print $1 }') >= 15 )); then
+				head -n15 ${NEW_TARGET_SYSDIR}/logs/build_error.log
+				echo -e "\e[031m......\e[0m"
+				echo -e "\e[031m错误数据太多，不再继续显示\e[0m，可打开 \e[031m ${NEW_TARGET_SYSDIR}/logs/build_error.log \e[0m 文件查看更多信息。"
+			else
+				cat ${NEW_TARGET_SYSDIR}/logs/build_error.log
+			fi
+			exit
 		fi
-		exit
-	fi
 
-	cat ${NEW_TARGET_SYSDIR}/logs/info_pool
+		cat ${NEW_TARGET_SYSDIR}/logs/info_pool
 	
-	if [ "x${1}" == "x" ]; then
-		echo "接下来可以使用 ./strip_os.sh $([[ "${SET_OVERLAY_DIR}" == "" ]] && echo "$([[ -d ${NEW_TARGET_SYSDIR}/overlaydir_strip ]] && echo "-f" || echo "")" || echo "-f ${SET_OVERLAY_DIR}") 脚本来清除调试信息和文件分组，使用 ./install_os_run.sh 安装系统启动脚本，$([[ -f info_set/release_sort ]] && echo "使用 ./release_info.sh 来创建软件包信息汇总 ，" || echo "" )以及使用 ./pack_os.sh $([[ "${SET_OVERLAY_DIR}" == "" ]] && echo "$([[ -d ${NEW_TARGET_SYSDIR}/dist/os/squashfs ]] && echo "-f" || echo "")" || echo "-f ${SET_OVERLAY_DIR}") 脚本来打包系统。"
-	fi
-else
-	exit
-fi
+		if [ "x${1}" == "x" ]; then
+			echo "接下来可以使用 ./strip_os.sh $([[ "${SET_OVERLAY_DIR}" == "" ]] && echo "$([[ -d ${NEW_TARGET_SYSDIR}/overlaydir_strip ]] && echo "-f" || echo "")" || echo "-f ${SET_OVERLAY_DIR}") 脚本来清除调试信息和文件分组，使用 ./install_os_run.sh 安装系统启动脚本，$([[ -f info_set/release_sort ]] && echo "使用 ./release_info.sh 来创建软件包信息汇总 ，" || echo "" )以及使用 ./pack_os.sh $([[ "${SET_OVERLAY_DIR}" == "" ]] && echo "$([[ -d ${NEW_TARGET_SYSDIR}/dist/os/squashfs ]] && echo "-f" || echo "")" || echo "-f ${SET_OVERLAY_DIR}") 脚本来打包系统。"
+		fi
+		;;
+	x99 )
+		exit 0
+		;;
+	*)
+# else
+		exit
+		;;
+# fi
+esac
 
 if [ "x${SINGLE_PACKAGE}" != "x1" ]; then
 	rm -f ${NEW_TARGET_SYSDIR}/step.index.temp
