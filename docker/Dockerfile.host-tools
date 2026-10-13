@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /src
 COPY . .
 RUN mkdir -p ./main/downloads ./main/workbase \
+    && mkdir -p ./host-tools-cache/host-tools ./host-tools-cache/status \
     && mv ./download_packages-cache/* ./main/downloads/ \
     && mv ./host-tools-cache/host-tools ./main/workbase/ \
     && mv ./host-tools-cache/status ./main/workbase/
