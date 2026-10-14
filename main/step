@@ -45,6 +45,7 @@
 %step/host-tools/Parse-Yapp|
 %step/host-tools/rpcsvc-proto|
 %step/host-tools/autoconf-archive|
+%step/host-tools/libyaml|
 %step/host-tools/ruby|
 %step/host-tools/truststore|
 %step/linux_runtime/NULL|
