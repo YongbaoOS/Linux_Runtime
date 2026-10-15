@@ -306,6 +306,10 @@ if [ -d ${ARCHIVE_DIR} ]; then
 			if [ -f /sbin/mksquashfs ]; then
 				MKSQUASHFS=/sbin/mksquashfs
 			fi
+			if [ "x${MKSQUASHFS}" == "x" ]; then
+				echo "没有找到 squashfs 文件制作工具，请先安装再重新执行当前命令。"
+				exit 9
+			fi
 			mkdir -p ${NEW_TARGET_SYSDIR}/dist/os/squashfs/${ARCHIVE_OS_NAME}/${ARCHIVE_OS_VERSION}/
 			if [ ! -f ${NEW_TARGET_SYSDIR}/dist/os/squashfs/${ARCHIVE_OS_NAME}/${ARCHIVE_OS_VERSION}/${ARCHIVE_STEP_NAME}.${ARCHIVE_ARCH_NAME}.squashfs ] || [ "x${FORCE_CREATE}" == "xTRUE" ]; then
 				rm -f ${NEW_TARGET_SYSDIR}/dist/os/squashfs/${ARCHIVE_OS_NAME}/${ARCHIVE_OS_VERSION}/${ARCHIVE_STEP_NAME}.${ARCHIVE_ARCH_NAME}.squashfs
