@@ -280,6 +280,7 @@
 %step/linux_runtime/libdaemon|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/avahi|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/ibus|%target=?x86_64;%OVERLAY=linux_runtime
+%step/linux_runtime/libgcrypt|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/fix_sysroot|%target=?x86_64;%OVERLAY=linux_runtime;none_status
 %step/linux_runtime/create_base_files|%target=?x86_64;%OVERLAY=linux_runtime
 %step/linux_runtime/dist_sysroot|%target=?x86_64;%OVERLAY=linux_runtime

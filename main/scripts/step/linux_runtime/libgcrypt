@@ -1,0 +1,16 @@
+source env/linux_runtime/config
+source env/distro.info
+source env/function.sh
+source env/linux_runtime/custom
+export STEP_BUILDNAME=linux_runtime
+export STEP_PACKAGENAME=libgcrypt
+export PACKAGE_VERSION=1.12.2
+export RESOURCEDIR=${NEW_TARGET_SYSDIR}/files/linux_runtime/libgcrypt/1.12.2/
+rm -rf ${BUILD_DIRECTORY}/libgcrypt-1.12.2
+tar xvf ${DOWNLOADDIR}/libgcrypt-1.12.2.tar.bz2 -C ${BUILD_DIRECTORY} 
+pushd ${BUILD_DIRECTORY}/libgcrypt-1.12.2
+    CFLAGS="${CFLAGS} -DGPGRT_ENABLE_ES_MACROS"
+    ./configure ${COMMON_CONFIG} --disable-amd64-as-feature-detection SYSROOT=${LINUX_SYSROOT_DIR}
+    eval ${MAKE_AND_INSTALL}
+popd 
+rm -rf ${BUILD_DIRECTORY}/libgcrypt-1.12.2
