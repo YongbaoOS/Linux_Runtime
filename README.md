@@ -72,7 +72,7 @@ popd
 若想生成其它架构的 Linux Runtime，例如 LoongArch 64位的 loongarch64 ，可使用如下命令：
 
 ```sh
-pushd linux_runtime/main
+pushd Linux_Runtime/main
 	./build.sh -e target=loongarch64 -S loongarch64_runtime
 popd
 ```
@@ -97,14 +97,14 @@ popd
 整理是为了让生成的成品减少多余的内容，整理命令：
 
 ```sh
-pushd linux_runtime/main
+pushd Linux_Runtime/main
 	./strip_os.sh -f
 popd
 ```
 上述步骤会对所有已生成的 Linux Runtime 目录进行整理，若只想处理某一个架构，可指定构建时设置的名称，例如：
 
 ```sh
-pushd linux_runtime/main
+pushd Linux_Runtime/main
 	./strip_os.sh -f loongarch64_runtime
 popd
 ```
@@ -114,7 +114,7 @@ popd
 整理完成后可进行打包，使用如下命令进行打包：
 
 ```sh
-pushd linux_runtime/main
+pushd Linux_Runtime/main
 	./pack_os.sh -s -f
 popd
 ```
